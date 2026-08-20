@@ -22,12 +22,28 @@ Build only:
 open .build/EdgeTodo.app
 ```
 
+For a stable login item, copy the app somewhere lasting (recommended):
+
+```bash
+./Scripts/build.sh
+cp -R .build/EdgeTodo.app /Applications/
+open /Applications/EdgeTodo.app
+```
+
 ## Use
 
 1. Move your cursor to the right edge of the screen
 2. Type a task and press Enter
 3. Click the circle to complete, × to delete
 4. Menu bar → **Edge Todo** → Quit
+
+### Open at Login
+
+On first launch, Edge Todo registers itself to start when you log in. Toggle it anytime via menu bar → **Open at Login**.
+
+macOS may ask for permission under **System Settings → General → Login Items**.
+
+## Data
 
 Todos are stored at `~/Library/Application Support/EdgeTodo/todos.json`.
 

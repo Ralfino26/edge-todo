@@ -4,12 +4,21 @@ import SwiftUI
 @main
 struct EdgeTodoApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+    @State private var openAtLogin = LaunchAtLogin.isEnabled
 
     var body: some Scene {
         MenuBarExtra("Edge Todo", systemImage: "checklist") {
             Button("Open panel") {
                 appDelegate.openTodos()
             }
+            Divider()
+            Toggle("Open at Login", isOn: Binding(
+                get: { openAtLogin },
+                set: { newValue in
+                    LaunchAtLogin.setEnabled(newValue)
+                    openAtLogin = LaunchAtLogin.isEnabled
+                }
+            ))
             Divider()
             Button("Quit Edge Todo") {
                 NSApp.terminate(nil)
@@ -25,6 +34,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+        LaunchAtLogin.enableOnFirstLaunchIfNeeded()
         panelController = EdgePanelController(store: store)
         panelController?.show()
     }

@@ -9,6 +9,7 @@ MACOS="$CONTENTS/MacOS"
 SOURCES=(
   "$ROOT/Sources/TodoItem.swift"
   "$ROOT/Sources/TodoStore.swift"
+  "$ROOT/Sources/LaunchAtLogin.swift"
   "$ROOT/Sources/TodoPanelView.swift"
   "$ROOT/Sources/EdgePanelController.swift"
   "$ROOT/Sources/EdgeTodoApp.swift"
@@ -21,6 +22,7 @@ swiftc -O -whole-module-optimization \
   -framework SwiftUI \
   -framework AppKit \
   -framework QuartzCore \
+  -framework ServiceManagement \
   -o "$MACOS/EdgeTodo" \
   "${SOURCES[@]}"
 
