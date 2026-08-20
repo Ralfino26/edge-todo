@@ -142,7 +142,6 @@ struct TodoPanelView: View {
 }
 
 private extension AnyTransition {
-    /// Insert from the edge; dismiss by sliding out and dissolving.
     static var todoRow: AnyTransition {
         .asymmetric(
             insertion: .opacity

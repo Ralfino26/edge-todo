@@ -2,7 +2,7 @@ import AppKit
 import QuartzCore
 import SwiftUI
 
-/// NSPanel that can accept keyboard focus (needed for the todo TextField).
+/// Floating panel that can take keyboard focus for the text field.
 final class KeyablePanel: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { true }
@@ -11,7 +11,6 @@ final class KeyablePanel: NSPanel {
 final class EdgePanelController: NSObject {
     static let expandedWidth: CGFloat = 312
     static let panelHeight: CGFloat = 400
-    /// Apple-like springy slide — same curve both ways.
     static let slideDuration: CFTimeInterval = 0.44
     static let collapseGrace: TimeInterval = 0.1
 
@@ -126,8 +125,7 @@ final class EdgePanelController: NSObject {
             return onThisScreen && closeToEdge && withinPanelHeight
         }()
 
-        // When expanded, the whole card is interactive — use its frame.
-        // When collapsed, the window sits off-screen, so only the edge hotzone counts.
+        // Expanded: use the card frame. Collapsed: window is off-screen, edge hotzone only.
         let insideCard = isExpanded && frame.insetBy(dx: -10, dy: -10).contains(point)
         let wasInside = isPointerInside
         isPointerInside = insideCard || nearRightEdge
@@ -199,8 +197,7 @@ final class EdgePanelController: NSObject {
         hostingView.rootView = makeRoot()
     }
 
-    /// Slides the full-size rounded card on/off the right edge.
-    /// Width stays constant so corner radius is never clipped mid-animation.
+    /// Keep width fixed and slide the card so rounded corners stay intact.
     private func layoutPanel(expanded: Bool, animated: Bool, completion: (() -> Void)? = nil) {
         let screen = panel.screen ?? NSScreen.main ?? NSScreen.screens.first
         guard let screen else {
@@ -211,7 +208,6 @@ final class EdgePanelController: NSObject {
         let width = Self.expandedWidth
         let height = min(Self.panelHeight, visible.height - 48)
         let y = visible.minY + (visible.height - height) / 2
-        // Expanded: docked to the right. Collapsed: fully off-screen to the right.
         let x = expanded ? visible.maxX - width : visible.maxX
         let target = NSRect(x: x, y: y, width: width, height: height)
 

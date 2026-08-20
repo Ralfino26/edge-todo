@@ -6,9 +6,8 @@ struct EdgeTodoApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     var body: some Scene {
-        // Menu bar control surface; the floating edge panel is created in AppDelegate.
         MenuBarExtra("Edge Todo", systemImage: "checklist") {
-            Button("Open todos") {
+            Button("Open panel") {
                 appDelegate.openTodos()
             }
             Divider()
@@ -27,10 +26,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
         panelController = EdgePanelController(store: store)
-        panelController?.show()
-    }
-
-    func showPanel() {
         panelController?.show()
     }
 
