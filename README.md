@@ -4,7 +4,7 @@ A minimal macOS edge drawer for quick todos.
 
 ![Edge Todo demo](assets/demo.gif)
 
-Hover the **right edge** of your screen — a dark glass panel slides in. Add tasks, check them off, move on. It lives in the menu bar (no Dock icon) and saves to disk automatically.
+Hover the **right edge** of your screen — a dark glass panel slides in. Add tasks, check them off, move on. No Dock icon, no menu bar icon — just the edge panel. Saves to disk automatically.
 
 ## Requirements
 
@@ -24,7 +24,7 @@ Build only:
 open .build/EdgeTodo.app
 ```
 
-For a stable login item, copy the app somewhere lasting (recommended):
+For a stable login item, install somewhere lasting (recommended — `./Scripts/run.sh` does this):
 
 ```bash
 ./Scripts/build.sh
@@ -37,13 +37,12 @@ open /Applications/EdgeTodo.app
 1. Move your cursor to the right edge of the screen
 2. Type a task and press Enter
 3. Click the circle to complete, × to delete
-4. Menu bar → **Edge Todo** → Quit
 
 ### Open at Login
 
-On first launch, Edge Todo registers itself to start when you log in. Toggle it anytime via menu bar → **Open at Login**.
+On first launch, Edge Todo registers itself to start when you log in.
 
-macOS may ask for permission under **System Settings → General → Login Items**.
+Manage it under **System Settings → General → Login Items** (EdgeTodo).
 
 ## Data
 

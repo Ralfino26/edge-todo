@@ -11,6 +11,9 @@ enum LaunchAtLogin {
     static func setEnabled(_ enabled: Bool) {
         do {
             if enabled {
+                if SMAppService.mainApp.status == .enabled {
+                    try? SMAppService.mainApp.unregister()
+                }
                 try SMAppService.mainApp.register()
             } else {
                 try SMAppService.mainApp.unregister()
@@ -21,9 +24,15 @@ enum LaunchAtLogin {
     }
 
     /// Enable once on first run so the app comes back after reboot.
+    /// Also refreshes registration so the login item tracks the current app path.
     static func enableOnFirstLaunchIfNeeded() {
-        guard !UserDefaults.standard.bool(forKey: didConfigureKey) else { return }
-        UserDefaults.standard.set(true, forKey: didConfigureKey)
-        setEnabled(true)
+        if !UserDefaults.standard.bool(forKey: didConfigureKey) {
+            UserDefaults.standard.set(true, forKey: didConfigureKey)
+            setEnabled(true)
+            return
+        }
+        if isEnabled {
+            setEnabled(true)
+        }
     }
 }
