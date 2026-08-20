@@ -9,8 +9,6 @@ final class KeyablePanel: NSPanel {
 }
 
 final class EdgePanelController: NSObject {
-    /// Invisible edge hit-zone when collapsed (no visible strip).
-    static let collapsedWidth: CGFloat = 3
     static let expandedWidth: CGFloat = 312
     static let panelHeight: CGFloat = 400
     /// Apple-like springy slide — same curve both ways.
@@ -49,7 +47,7 @@ final class EdgePanelController: NSObject {
     }
 
     func show() {
-        position(expanded: isExpanded, animated: false)
+        layoutPanel(expanded: isExpanded, animated: false)
         panel.orderFrontRegardless()
     }
 
@@ -59,7 +57,7 @@ final class EdgePanelController: NSObject {
 
     private func buildPanel() {
         panel = KeyablePanel(
-            contentRect: NSRect(x: 0, y: 0, width: Self.collapsedWidth, height: 400),
+            contentRect: NSRect(x: 0, y: 0, width: Self.expandedWidth, height: Self.panelHeight),
             styleMask: [.borderless, .fullSizeContentView],
             backing: .buffered,
             defer: false
@@ -96,7 +94,7 @@ final class EdgePanelController: NSObject {
             queue: .main
         ) { [weak self] _ in
             guard let self else { return }
-            self.position(expanded: self.isExpanded, animated: false)
+            self.layoutPanel(expanded: self.isExpanded, animated: false)
         }
     }
 
@@ -112,21 +110,23 @@ final class EdgePanelController: NSObject {
 
     private func handleMouseLocation(_ point: NSPoint) {
         let frame = panel.frame
-        let hitPad: CGFloat = isExpanded ? 10 : 8
-        let hitRect = frame.insetBy(dx: -hitPad, dy: -hitPad)
-        let inside = hitRect.contains(point)
-
         let screen = screenContaining(point) ?? panel.screen ?? NSScreen.main
+
         let nearRightEdge: Bool = {
             guard let screen else { return false }
             let onThisScreen = screen.frame.contains(point)
             let closeToEdge = point.x >= screen.frame.maxX - 8
-            let withinPanelHeight = point.y >= frame.minY - 16 && point.y <= frame.maxY + 16
+            let height = min(Self.panelHeight, screen.visibleFrame.height - 48)
+            let midY = screen.visibleFrame.midY
+            let withinPanelHeight = point.y >= midY - height / 2 - 16 && point.y <= midY + height / 2 + 16
             return onThisScreen && closeToEdge && withinPanelHeight
         }()
 
+        // When expanded, the whole card is interactive — use its frame.
+        // When collapsed, the window sits off-screen, so only the edge hotzone counts.
+        let insideCard = isExpanded && frame.insetBy(dx: -10, dy: -10).contains(point)
         let wasInside = isPointerInside
-        isPointerInside = inside || nearRightEdge
+        isPointerInside = insideCard || nearRightEdge
 
         if isPointerInside {
             cancelCollapse()
@@ -148,8 +148,9 @@ final class EdgePanelController: NSObject {
         cancelCollapse()
         let wasExpanded = isExpanded
         isExpanded = true
+        panel.ignoresMouseEvents = false
         refreshRoot()
-        position(expanded: true, animated: !wasExpanded)
+        layoutPanel(expanded: true, animated: !wasExpanded)
 
         if activate {
             NSApp.activate(ignoringOtherApps: true)
@@ -168,7 +169,9 @@ final class EdgePanelController: NSObject {
         if panel.isKeyWindow {
             panel.resignKey()
         }
-        position(expanded: false, animated: animated)
+        layoutPanel(expanded: false, animated: animated) { [weak self] in
+            self?.panel.ignoresMouseEvents = true
+        }
     }
 
     private func scheduleCollapse() {
@@ -192,25 +195,31 @@ final class EdgePanelController: NSObject {
         hostingView.rootView = makeRoot()
     }
 
-    private func position(expanded: Bool, animated: Bool = false) {
+    /// Slides the full-size rounded card on/off the right edge.
+    /// Width stays constant so corner radius is never clipped mid-animation.
+    private func layoutPanel(expanded: Bool, animated: Bool, completion: (() -> Void)? = nil) {
         let screen = panel.screen ?? NSScreen.main ?? NSScreen.screens.first
-        guard let screen else { return }
+        guard let screen else {
+            completion?()
+            return
+        }
         let visible = screen.visibleFrame
-        let width = expanded ? Self.expandedWidth : Self.collapsedWidth
+        let width = Self.expandedWidth
         let height = min(Self.panelHeight, visible.height - 48)
-        let x = visible.maxX - width
         let y = visible.minY + (visible.height - height) / 2
+        // Expanded: docked to the right. Collapsed: fully off-screen to the right.
+        let x = expanded ? visible.maxX - width : visible.maxX
         let target = NSRect(x: x, y: y, width: width, height: height)
 
         if animated {
-            NSAnimationContext.runAnimationGroup { context in
+            NSAnimationContext.runAnimationGroup({ context in
                 context.duration = Self.slideDuration
-                // Smooth decelerate — feels like macOS Continuity / Control Center.
                 context.timingFunction = CAMediaTimingFunction(controlPoints: 0.16, 1.0, 0.3, 1.0)
                 panel.animator().setFrame(target, display: true)
-            }
+            }, completionHandler: completion)
         } else {
             panel.setFrame(target, display: true)
+            completion?()
         }
     }
 }

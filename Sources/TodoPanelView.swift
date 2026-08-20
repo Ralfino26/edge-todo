@@ -5,7 +5,6 @@ struct TodoPanelView: View {
     var isExpanded: Bool
 
     @State private var draft = ""
-    @State private var contentVisible = false
     @FocusState private var inputFocused: Bool
 
     var body: some View {
@@ -14,17 +13,11 @@ struct TodoPanelView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
             .environment(\.colorScheme, .dark)
             .onChange(of: isExpanded) { _, expanded in
-                withAnimation(.easeOut(duration: 0.28)) {
-                    contentVisible = expanded
-                }
                 if expanded {
                     focusInputSoon()
                 } else {
                     inputFocused = false
                 }
-            }
-            .onAppear {
-                contentVisible = isExpanded
             }
     }
 
@@ -44,8 +37,7 @@ struct TodoPanelView: View {
                 .strokeBorder(Color.white.opacity(0.08), lineWidth: 0.5)
         )
         .padding(10)
-        .opacity(contentVisible ? 1 : 0)
-        .offset(x: contentVisible ? 0 : 18)
+        .shadow(color: .black.opacity(0.35), radius: 24, x: -6, y: 8)
     }
 
     private var glassBackground: some View {
