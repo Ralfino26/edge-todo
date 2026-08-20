@@ -81,6 +81,8 @@ final class EdgePanelController: NSObject {
         hostingView.frame = panel.contentView?.bounds ?? .zero
         hostingView.autoresizingMask = [.width, .height]
         panel.contentView = hostingView
+        panel.contentView?.wantsLayer = true
+        panel.contentView?.layer?.backgroundColor = NSColor.clear.cgColor
     }
 
     private func makeRoot() -> TodoPanelView {
