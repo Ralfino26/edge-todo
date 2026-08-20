@@ -32,20 +32,14 @@ struct TodoPanelView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(glassBackground)
         .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.08), lineWidth: 0.5)
-        )
-        .padding(10)
-        .shadow(color: .black.opacity(0.35), radius: 24, x: -6, y: 8)
     }
 
     private var glassBackground: some View {
         RoundedRectangle(cornerRadius: 22, style: .continuous)
-            .fill(.ultraThinMaterial)
-            .overlay(
+            .fill(Color(red: 0.09, green: 0.09, blue: 0.1).opacity(0.92))
+            .background(
                 RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .fill(Color.black.opacity(0.38))
+                    .fill(.ultraThinMaterial)
             )
     }
 

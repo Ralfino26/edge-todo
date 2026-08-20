@@ -81,6 +81,10 @@ final class EdgePanelController: NSObject {
         panel.contentView = hostingView
         panel.contentView?.wantsLayer = true
         panel.contentView?.layer?.backgroundColor = NSColor.clear.cgColor
+        panel.contentView?.layer?.cornerRadius = 22
+        panel.contentView?.layer?.masksToBounds = true
+        hostingView.wantsLayer = true
+        hostingView.layer?.backgroundColor = NSColor.clear.cgColor
     }
 
     private func makeRoot() -> TodoPanelView {
