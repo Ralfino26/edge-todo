@@ -2,55 +2,27 @@ import SwiftUI
 
 struct TodoPanelView: View {
     @Bindable var store: TodoStore
-    @Binding var isExpanded: Bool
-    var onHandleClick: () -> Void
+    var isExpanded: Bool
 
     @State private var draft = ""
     @FocusState private var inputFocused: Bool
 
     var body: some View {
-        ZStack(alignment: .trailing) {
-            if isExpanded {
-                expandedContent
-                    .transition(.move(edge: .trailing).combined(with: .opacity))
-            } else {
-                collapsedHandle
-                    .transition(.opacity)
-            }
-        }
-        .animation(.spring(response: 0.32, dampingFraction: 0.86), value: isExpanded)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
-    }
-
-    private var collapsedHandle: some View {
-        Button(action: onHandleClick) {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Color(red: 0.16, green: 0.55, blue: 0.58),
-                            Color(red: 0.10, green: 0.32, blue: 0.38),
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-                .frame(width: 12)
-                .padding(.vertical, 36)
-                .overlay(alignment: .trailing) {
-                    Capsule()
-                        .fill(.white.opacity(0.55))
-                        .frame(width: 3, height: 44)
-                        .padding(.trailing, 4)
+        // Full drawer content, trailing-aligned. Collapsed window is an invisible
+        // 4pt edge zone — hovering the right screen edge slides this open.
+        panelBody
+            .frame(width: EdgePanelController.expandedWidth)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+            .onChange(of: isExpanded) { _, expanded in
+                if expanded {
+                    focusInputSoon()
+                } else {
+                    inputFocused = false
                 }
-                .frame(maxHeight: .infinity)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .help("Click or hover to open todos")
+            }
     }
 
-    private var expandedContent: some View {
+    private var panelBody: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
             Divider().opacity(0.35)
@@ -70,15 +42,7 @@ struct TodoPanelView: View {
                 .shadow(color: .black.opacity(0.28), radius: 18, x: -4, y: 6)
         )
         .padding(.vertical, 10)
-        .padding(.trailing, 8)
-        .onAppear {
-            focusInputSoon()
-        }
-        .onChange(of: isExpanded) { _, expanded in
-            if expanded {
-                focusInputSoon()
-            }
-        }
+        .padding(.horizontal, 8)
     }
 
     private var header: some View {
@@ -115,7 +79,7 @@ struct TodoPanelView: View {
                 Image(systemName: "plus.circle.fill")
                     .font(.system(size: 18))
                     .symbolRenderingMode(.hierarchical)
-                    .foregroundStyle(Color(red: 0.18, green: 0.52, blue: 0.55))
+                    .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
             .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -189,11 +153,7 @@ private struct TodoRow: View {
             Button(action: onToggle) {
                 Image(systemName: item.isDone ? "checkmark.circle.fill" : "circle")
                     .font(.system(size: 16))
-                    .foregroundStyle(
-                        item.isDone
-                            ? Color(red: 0.18, green: 0.52, blue: 0.55)
-                            : Color.secondary.opacity(0.7)
-                    )
+                    .foregroundStyle(item.isDone ? Color.primary.opacity(0.55) : Color.secondary.opacity(0.7))
             }
             .buttonStyle(.plain)
 

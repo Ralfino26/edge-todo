@@ -9,9 +9,13 @@ final class KeyablePanel: NSPanel {
 }
 
 final class EdgePanelController: NSObject {
-    static let collapsedWidth: CGFloat = 18
+    /// Invisible edge hit-zone when collapsed (no visible strip).
+    static let collapsedWidth: CGFloat = 4
     static let expandedWidth: CGFloat = 340
-    static let verticalInset: CGFloat = 72
+    /// Target panel height — compact so it feels like a peek drawer, not a sidebar.
+    static let panelHeight: CGFloat = 420
+    static let slideDuration: CFTimeInterval = 0.32
+    static let collapseGrace: TimeInterval = 0.12
 
     private let store: TodoStore
     private var panel: KeyablePanel!
@@ -45,7 +49,7 @@ final class EdgePanelController: NSObject {
     }
 
     func show() {
-        position(expanded: isExpanded)
+        position(expanded: isExpanded, animated: false)
         panel.orderFrontRegardless()
     }
 
@@ -68,7 +72,7 @@ final class EdgePanelController: NSObject {
         panel.isReleasedWhenClosed = false
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
         panel.isMovable = false
-        panel.animationBehavior = .utilityWindow
+        panel.animationBehavior = .none
         panel.titleVisibility = .hidden
         panel.titlebarAppearsTransparent = true
 
@@ -79,23 +83,7 @@ final class EdgePanelController: NSObject {
     }
 
     private func makeRoot() -> TodoPanelView {
-        TodoPanelView(
-            store: store,
-            isExpanded: Binding(
-                get: { [weak self] in self?.isExpanded ?? false },
-                set: { [weak self] value in
-                    guard let self else { return }
-                    if value {
-                        self.expand(activate: true)
-                    } else {
-                        self.collapse(animated: true)
-                    }
-                }
-            ),
-            onHandleClick: { [weak self] in
-                self?.expand(activate: true)
-            }
-        )
+        TodoPanelView(store: store, isExpanded: isExpanded)
     }
 
     private func observeScreenChanges() {
@@ -105,7 +93,7 @@ final class EdgePanelController: NSObject {
             queue: .main
         ) { [weak self] _ in
             guard let self else { return }
-            self.position(expanded: self.isExpanded)
+            self.position(expanded: self.isExpanded, animated: false)
         }
     }
 
@@ -121,21 +109,21 @@ final class EdgePanelController: NSObject {
 
     private func handleMouseLocation(_ point: NSPoint) {
         let frame = panel.frame
-        let hitPad: CGFloat = isExpanded ? 12 : 10
+        let hitPad: CGFloat = isExpanded ? 8 : 10
         let hitRect = frame.insetBy(dx: -hitPad, dy: -hitPad)
         let inside = hitRect.contains(point)
 
-        // Also open when the cursor is parked on the absolute right edge of the screen
-        // that contains the panel (helps when the strip is easy to miss).
         let screen = screenContaining(point) ?? panel.screen ?? NSScreen.main
         let nearRightEdge: Bool = {
             guard let screen else { return false }
             let onThisScreen = screen.frame.contains(point)
-            let closeToEdge = point.x >= screen.frame.maxX - 24
-            let withinPanelHeight = point.y >= frame.minY - 20 && point.y <= frame.maxY + 20
+            // Slightly wider hotzone since there's no visible strip to aim for.
+            let closeToEdge = point.x >= screen.frame.maxX - 8
+            let withinPanelHeight = point.y >= frame.minY - 16 && point.y <= frame.maxY + 16
             return onThisScreen && closeToEdge && withinPanelHeight
         }()
 
+        let wasInside = isPointerInside
         isPointerInside = inside || nearRightEdge
 
         if isPointerInside {
@@ -143,12 +131,10 @@ final class EdgePanelController: NSObject {
             if !isExpanded {
                 expand(activate: false)
             }
-        } else if isExpanded {
-            // Keep open while the user is typing / panel holds keyboard focus.
-            if panel.isKeyWindow {
-                cancelCollapse()
-                return
-            }
+        } else if isExpanded && wasInside {
+            // Start the leave → collapse sequence as soon as the pointer exits.
+            scheduleCollapse()
+        } else if isExpanded && !isPointerInside {
             scheduleCollapse()
         }
     }
@@ -161,9 +147,7 @@ final class EdgePanelController: NSObject {
         cancelCollapse()
         let wasExpanded = isExpanded
         isExpanded = true
-        if !wasExpanded {
-            refreshRoot()
-        }
+        refreshRoot()
         position(expanded: true, animated: !wasExpanded)
 
         if activate {
@@ -176,11 +160,14 @@ final class EdgePanelController: NSObject {
 
     private func collapse(animated: Bool) {
         cancelCollapse()
+        guard isExpanded || animated == false else { return }
         isExpanded = false
         isPointerInside = false
         refreshRoot()
+        if panel.isKeyWindow {
+            panel.resignKey()
+        }
         position(expanded: false, animated: animated)
-        panel.resignKey()
     }
 
     private func scheduleCollapse() {
@@ -188,13 +175,11 @@ final class EdgePanelController: NSObject {
         let work = DispatchWorkItem { [weak self] in
             guard let self else { return }
             self.collapseWorkItem = nil
-            // Re-check: still outside and not editing.
-            if !self.isPointerInside && !self.panel.isKeyWindow {
-                self.collapse(animated: true)
-            }
+            guard !self.isPointerInside, self.isExpanded else { return }
+            self.collapse(animated: true)
         }
         collapseWorkItem = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.55, execute: work)
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.collapseGrace, execute: work)
     }
 
     private func cancelCollapse() {
@@ -211,15 +196,17 @@ final class EdgePanelController: NSObject {
         guard let screen else { return }
         let visible = screen.visibleFrame
         let width = expanded ? Self.expandedWidth : Self.collapsedWidth
-        let height = max(320, visible.height - Self.verticalInset * 2)
+        let height = min(Self.panelHeight, visible.height - 48)
         let x = visible.maxX - width
         let y = visible.minY + (visible.height - height) / 2
         let target = NSRect(x: x, y: y, width: width, height: height)
 
         if animated {
+            // Window width drives the slide; SwiftUI content is trailing-aligned
+            // so it peels in/out at the same pace both ways.
             NSAnimationContext.runAnimationGroup { context in
-                context.duration = 0.2
-                context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                context.duration = Self.slideDuration
+                context.timingFunction = CAMediaTimingFunction(controlPoints: 0.25, 0.1, 0.25, 1)
                 panel.animator().setFrame(target, display: true)
             }
         } else {
