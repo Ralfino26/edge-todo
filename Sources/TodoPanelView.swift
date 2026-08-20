@@ -98,27 +98,26 @@ struct TodoPanelView: View {
             } else {
                 ScrollView(.vertical, showsIndicators: false) {
                     LazyVStack(alignment: .leading, spacing: 2) {
-                        ForEach(Array(store.items.enumerated()), id: \.element.id) { index, item in
+                        ForEach(store.items) { item in
                             TodoRow(
                                 item: item,
-                                onToggle: { store.toggle(item.id) },
-                                onDelete: { store.remove(item.id) }
+                                onToggle: {
+                                    withAnimation(.easeOut(duration: 0.2)) {
+                                        store.toggle(item.id)
+                                    }
+                                },
+                                onDelete: {
+                                    withAnimation(.spring(response: 0.36, dampingFraction: 0.86)) {
+                                        store.remove(item.id)
+                                    }
+                                }
                             )
-                            .transition(
-                                .asymmetric(
-                                    insertion: .opacity.combined(with: .move(edge: .trailing)),
-                                    removal: .opacity.combined(with: .scale(scale: 0.96))
-                                )
-                            )
-                            .animation(
-                                .easeOut(duration: 0.28).delay(Double(min(index, 6)) * 0.03),
-                                value: contentVisible
-                            )
+                            .transition(.todoRow)
                         }
 
                         if store.items.contains(where: \.isDone) {
                             Button {
-                                withAnimation(.easeOut(duration: 0.22)) {
+                                withAnimation(.spring(response: 0.36, dampingFraction: 0.86)) {
                                     store.clearDone()
                                 }
                             } label: {
@@ -130,8 +129,10 @@ struct TodoPanelView: View {
                                     .padding(.trailing, 4)
                             }
                             .buttonStyle(.plain)
+                            .transition(.opacity)
                         }
                     }
+                    .animation(.spring(response: 0.36, dampingFraction: 0.86), value: store.items)
                 }
             }
         }
@@ -140,7 +141,7 @@ struct TodoPanelView: View {
     private func submitDraft() {
         let value = draft
         guard !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-        withAnimation(.easeOut(duration: 0.22)) {
+        withAnimation(.spring(response: 0.36, dampingFraction: 0.86)) {
             store.add(value)
         }
         draft = ""
@@ -151,6 +152,20 @@ struct TodoPanelView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.28) {
             inputFocused = true
         }
+    }
+}
+
+private extension AnyTransition {
+    /// Insert from the edge; dismiss by sliding out and dissolving.
+    static var todoRow: AnyTransition {
+        .asymmetric(
+            insertion: .opacity
+                .combined(with: .offset(x: 18))
+                .combined(with: .scale(scale: 0.98, anchor: .trailing)),
+            removal: .opacity
+                .combined(with: .offset(x: 64))
+                .combined(with: .scale(scale: 0.92, anchor: .leading))
+        )
     }
 }
 
