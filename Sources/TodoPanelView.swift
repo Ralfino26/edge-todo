@@ -5,139 +5,145 @@ struct TodoPanelView: View {
     var isExpanded: Bool
 
     @State private var draft = ""
+    @State private var contentVisible = false
     @FocusState private var inputFocused: Bool
 
     var body: some View {
-        // Full drawer content, trailing-aligned. Collapsed window is an invisible
-        // 4pt edge zone — hovering the right screen edge slides this open.
         panelBody
             .frame(width: EdgePanelController.expandedWidth)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+            .environment(\.colorScheme, .dark)
             .onChange(of: isExpanded) { _, expanded in
+                withAnimation(.easeOut(duration: 0.28)) {
+                    contentVisible = expanded
+                }
                 if expanded {
                     focusInputSoon()
                 } else {
                     inputFocused = false
                 }
             }
+            .onAppear {
+                contentVisible = isExpanded
+            }
     }
 
     private var panelBody: some View {
         VStack(alignment: .leading, spacing: 0) {
-            header
-            Divider().opacity(0.35)
             inputRow
-            Divider().opacity(0.25)
             list
         }
-        .padding(14)
+        .padding(.horizontal, 14)
+        .padding(.top, 14)
+        .padding(.bottom, 12)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .strokeBorder(Color.white.opacity(0.18), lineWidth: 1)
-                )
-                .shadow(color: .black.opacity(0.28), radius: 18, x: -4, y: 6)
-        )
-        .padding(.vertical, 10)
-        .padding(.horizontal, 8)
+        .background(glassBackground)
+        .opacity(contentVisible ? 1 : 0)
+        .offset(x: contentVisible ? 0 : 18)
     }
 
-    private var header: some View {
-        HStack(alignment: .firstTextBaseline) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Edge Todo")
-                    .font(.system(size: 15, weight: .semibold, design: .rounded))
-                Text(openCountLabel)
-                    .font(.system(size: 11, weight: .medium, design: .rounded))
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-            if store.items.contains(where: \.isDone) {
-                Button("Clear done") {
-                    store.clearDone()
-                }
-                .buttonStyle(.plain)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(.secondary)
-            }
-        }
-        .padding(.bottom, 10)
+    private var glassBackground: some View {
+        Rectangle()
+            .fill(.ultraThinMaterial)
+            .overlay(Color.black.opacity(0.38))
+            .overlay(
+                Rectangle()
+                    .strokeBorder(Color.white.opacity(0.06), lineWidth: 0.5)
+            )
     }
 
     private var inputRow: some View {
-        HStack(spacing: 8) {
-            TextField("Add a todo…", text: $draft)
+        HStack(spacing: 10) {
+            TextField("", text: $draft, prompt: Text("New").foregroundStyle(.white.opacity(0.28)))
                 .textFieldStyle(.plain)
-                .font(.system(size: 13, design: .rounded))
+                .font(.system(size: 14, weight: .regular))
+                .foregroundStyle(.white.opacity(0.92))
                 .focused($inputFocused)
                 .onSubmit(submitDraft)
 
-            Button(action: submitDraft) {
-                Image(systemName: "plus.circle.fill")
-                    .font(.system(size: 18))
-                    .symbolRenderingMode(.hierarchical)
-                    .foregroundStyle(.secondary)
+            if !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                Button(action: submitDraft) {
+                    Image(systemName: "arrow.up.circle.fill")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.55))
+                }
+                .buttonStyle(.plain)
+                .transition(.opacity.combined(with: .scale(scale: 0.85)))
             }
-            .buttonStyle(.plain)
-            .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 9)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.primary.opacity(0.06))
-        )
+        .padding(.horizontal, 12)
         .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.white.opacity(0.06))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .strokeBorder(Color.white.opacity(0.08), lineWidth: 0.5)
+                )
+        )
+        .padding(.bottom, 10)
+        .animation(.easeOut(duration: 0.18), value: draft.isEmpty)
     }
 
     private var list: some View {
         Group {
             if store.items.isEmpty {
-                VStack(spacing: 8) {
-                    Spacer(minLength: 24)
-                    Image(systemName: "checklist")
-                        .font(.system(size: 28, weight: .light))
-                        .foregroundStyle(.tertiary)
-                    Text("Type a todo and press Enter")
-                        .font(.system(size: 12, design: .rounded))
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                }
-                .frame(maxWidth: .infinity)
+                Color.clear
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 4) {
-                        ForEach(store.items) { item in
+                ScrollView(.vertical, showsIndicators: false) {
+                    LazyVStack(alignment: .leading, spacing: 2) {
+                        ForEach(Array(store.items.enumerated()), id: \.element.id) { index, item in
                             TodoRow(
                                 item: item,
                                 onToggle: { store.toggle(item.id) },
                                 onDelete: { store.remove(item.id) }
                             )
+                            .transition(
+                                .asymmetric(
+                                    insertion: .opacity.combined(with: .move(edge: .trailing)),
+                                    removal: .opacity.combined(with: .scale(scale: 0.96))
+                                )
+                            )
+                            .animation(
+                                .easeOut(duration: 0.28).delay(Double(min(index, 6)) * 0.03),
+                                value: contentVisible
+                            )
+                        }
+
+                        if store.items.contains(where: \.isDone) {
+                            Button {
+                                withAnimation(.easeOut(duration: 0.22)) {
+                                    store.clearDone()
+                                }
+                            } label: {
+                                Text("Clear")
+                                    .font(.system(size: 11, weight: .medium))
+                                    .foregroundStyle(.white.opacity(0.28))
+                                    .frame(maxWidth: .infinity, alignment: .trailing)
+                                    .padding(.top, 10)
+                                    .padding(.trailing, 4)
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
-                    .padding(.top, 8)
-                    .padding(.bottom, 4)
                 }
             }
         }
     }
 
-    private var openCountLabel: String {
-        let open = store.items.filter { !$0.isDone }.count
-        return open == 1 ? "1 open" : "\(open) open"
-    }
-
     private func submitDraft() {
-        store.add(draft)
+        let value = draft
+        guard !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        withAnimation(.easeOut(duration: 0.22)) {
+            store.add(value)
+        }
         draft = ""
         inputFocused = true
     }
 
     private func focusInputSoon() {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.28) {
             inputFocused = true
         }
     }
@@ -148,36 +154,47 @@ private struct TodoRow: View {
     let onToggle: () -> Void
     let onDelete: () -> Void
 
+    @State private var hovering = false
+
     var body: some View {
         HStack(spacing: 10) {
             Button(action: onToggle) {
                 Image(systemName: item.isDone ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 16))
-                    .foregroundStyle(item.isDone ? Color.primary.opacity(0.55) : Color.secondary.opacity(0.7))
+                    .font(.system(size: 15, weight: .regular))
+                    .foregroundStyle(
+                        item.isDone
+                            ? Color.white.opacity(0.28)
+                            : Color.white.opacity(hovering ? 0.55 : 0.35)
+                    )
             }
             .buttonStyle(.plain)
 
             Text(item.title)
-                .font(.system(size: 13, design: .rounded))
-                .strikethrough(item.isDone, color: .secondary)
-                .foregroundStyle(item.isDone ? .secondary : .primary)
-                .lineLimit(3)
+                .font(.system(size: 13.5, weight: .regular))
+                .strikethrough(item.isDone, color: .white.opacity(0.2))
+                .foregroundStyle(item.isDone ? Color.white.opacity(0.28) : Color.white.opacity(0.88))
+                .lineLimit(2)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-            Button(action: onDelete) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 9, weight: .bold))
-                    .foregroundStyle(.secondary.opacity(0.7))
-                    .padding(4)
+            if hovering {
+                Button(action: onDelete) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.35))
+                        .frame(width: 18, height: 18)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .transition(.opacity)
             }
-            .buttonStyle(.plain)
-            .opacity(0.75)
         }
         .padding(.horizontal, 8)
-        .padding(.vertical, 7)
+        .padding(.vertical, 8)
         .background(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(Color.primary.opacity(0.04))
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(hovering ? Color.white.opacity(0.05) : Color.clear)
         )
+        .onHover { hovering = $0 }
+        .animation(.easeOut(duration: 0.15), value: hovering)
     }
 }

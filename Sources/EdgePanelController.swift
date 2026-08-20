@@ -10,12 +10,12 @@ final class KeyablePanel: NSPanel {
 
 final class EdgePanelController: NSObject {
     /// Invisible edge hit-zone when collapsed (no visible strip).
-    static let collapsedWidth: CGFloat = 4
-    static let expandedWidth: CGFloat = 340
-    /// Target panel height — compact so it feels like a peek drawer, not a sidebar.
-    static let panelHeight: CGFloat = 420
-    static let slideDuration: CFTimeInterval = 0.32
-    static let collapseGrace: TimeInterval = 0.12
+    static let collapsedWidth: CGFloat = 3
+    static let expandedWidth: CGFloat = 312
+    static let panelHeight: CGFloat = 400
+    /// Apple-like springy slide — same curve both ways.
+    static let slideDuration: CFTimeInterval = 0.44
+    static let collapseGrace: TimeInterval = 0.1
 
     private let store: TodoStore
     private var panel: KeyablePanel!
@@ -75,6 +75,7 @@ final class EdgePanelController: NSObject {
         panel.animationBehavior = .none
         panel.titleVisibility = .hidden
         panel.titlebarAppearsTransparent = true
+        panel.appearance = NSAppearance(named: .darkAqua)
 
         hostingView = NSHostingView(rootView: makeRoot())
         hostingView.frame = panel.contentView?.bounds ?? .zero
@@ -109,7 +110,7 @@ final class EdgePanelController: NSObject {
 
     private func handleMouseLocation(_ point: NSPoint) {
         let frame = panel.frame
-        let hitPad: CGFloat = isExpanded ? 8 : 10
+        let hitPad: CGFloat = isExpanded ? 10 : 8
         let hitRect = frame.insetBy(dx: -hitPad, dy: -hitPad)
         let inside = hitRect.contains(point)
 
@@ -117,7 +118,6 @@ final class EdgePanelController: NSObject {
         let nearRightEdge: Bool = {
             guard let screen else { return false }
             let onThisScreen = screen.frame.contains(point)
-            // Slightly wider hotzone since there's no visible strip to aim for.
             let closeToEdge = point.x >= screen.frame.maxX - 8
             let withinPanelHeight = point.y >= frame.minY - 16 && point.y <= frame.maxY + 16
             return onThisScreen && closeToEdge && withinPanelHeight
@@ -132,7 +132,6 @@ final class EdgePanelController: NSObject {
                 expand(activate: false)
             }
         } else if isExpanded && wasInside {
-            // Start the leave → collapse sequence as soon as the pointer exits.
             scheduleCollapse()
         } else if isExpanded && !isPointerInside {
             scheduleCollapse()
@@ -202,11 +201,10 @@ final class EdgePanelController: NSObject {
         let target = NSRect(x: x, y: y, width: width, height: height)
 
         if animated {
-            // Window width drives the slide; SwiftUI content is trailing-aligned
-            // so it peels in/out at the same pace both ways.
             NSAnimationContext.runAnimationGroup { context in
                 context.duration = Self.slideDuration
-                context.timingFunction = CAMediaTimingFunction(controlPoints: 0.25, 0.1, 0.25, 1)
+                // Smooth decelerate — feels like macOS Continuity / Control Center.
+                context.timingFunction = CAMediaTimingFunction(controlPoints: 0.16, 1.0, 0.3, 1.0)
                 panel.animator().setFrame(target, display: true)
             }
         } else {
