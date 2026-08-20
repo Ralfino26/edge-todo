@@ -2,7 +2,7 @@
 
 A minimal macOS edge drawer for quick todos.
 
-![Edge Todo demo](assets/demo.mp4)
+![Edge Todo demo](assets/demo.gif)
 
 Hover the **right edge** of your screen — a dark glass panel slides in. Add tasks, check them off, move on. It lives in the menu bar (no Dock icon) and saves to disk automatically.
 
