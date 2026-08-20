@@ -3,6 +3,8 @@ import SwiftUI
 struct TodoPanelView: View {
     @Bindable var store: TodoStore
     @Binding var isExpanded: Bool
+    var onHandleClick: () -> Void
+
     @State private var draft = ""
     @FocusState private var inputFocused: Bool
 
@@ -18,31 +20,34 @@ struct TodoPanelView: View {
         }
         .animation(.spring(response: 0.32, dampingFraction: 0.86), value: isExpanded)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
-        .background(panelBackground)
     }
 
     private var collapsedHandle: some View {
-        RoundedRectangle(cornerRadius: 6, style: .continuous)
-            .fill(
-                LinearGradient(
-                    colors: [
-                        Color(red: 0.18, green: 0.42, blue: 0.48),
-                        Color(red: 0.12, green: 0.28, blue: 0.34),
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
+        Button(action: onHandleClick) {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color(red: 0.16, green: 0.55, blue: 0.58),
+                            Color(red: 0.10, green: 0.32, blue: 0.38),
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
                 )
-            )
-            .frame(width: 8)
-            .padding(.vertical, 48)
-            .frame(maxHeight: .infinity, alignment: .center)
-            .overlay(alignment: .trailing) {
-                Capsule()
-                    .fill(.white.opacity(0.45))
-                    .frame(width: 2, height: 36)
-                    .padding(.trailing, 3)
-            }
-            .help("Hover to open todos")
+                .frame(width: 12)
+                .padding(.vertical, 36)
+                .overlay(alignment: .trailing) {
+                    Capsule()
+                        .fill(.white.opacity(0.55))
+                        .frame(width: 3, height: 44)
+                        .padding(.trailing, 4)
+                }
+                .frame(maxHeight: .infinity)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help("Click or hover to open todos")
     }
 
     private var expandedContent: some View {
@@ -67,8 +72,11 @@ struct TodoPanelView: View {
         .padding(.vertical, 10)
         .padding(.trailing, 8)
         .onAppear {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                inputFocused = true
+            focusInputSoon()
+        }
+        .onChange(of: isExpanded) { _, expanded in
+            if expanded {
+                focusInputSoon()
             }
         }
     }
@@ -112,6 +120,12 @@ struct TodoPanelView: View {
             .buttonStyle(.plain)
             .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 9)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color.primary.opacity(0.06))
+        )
         .padding(.vertical, 10)
     }
 
@@ -123,7 +137,7 @@ struct TodoPanelView: View {
                     Image(systemName: "checklist")
                         .font(.system(size: 28, weight: .light))
                         .foregroundStyle(.tertiary)
-                    Text("Hover in, type, enter.")
+                    Text("Type a todo and press Enter")
                         .font(.system(size: 12, design: .rounded))
                         .foregroundStyle(.secondary)
                     Spacer()
@@ -147,11 +161,6 @@ struct TodoPanelView: View {
         }
     }
 
-    private var panelBackground: some View {
-        Color.clear
-            .contentShape(Rectangle())
-    }
-
     private var openCountLabel: String {
         let open = store.items.filter { !$0.isDone }.count
         return open == 1 ? "1 open" : "\(open) open"
@@ -161,6 +170,12 @@ struct TodoPanelView: View {
         store.add(draft)
         draft = ""
         inputFocused = true
+    }
+
+    private func focusInputSoon() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            inputFocused = true
+        }
     }
 }
 
